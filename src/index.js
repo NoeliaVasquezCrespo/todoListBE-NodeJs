@@ -6,12 +6,12 @@ const app = express();
 dotenv.config({ path: './.env' });
 
 const pool = require('./db/connection');
+const userRoutes = require('./routes/user.routes');
+
 const port = process.env.PORT || 3000;
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hola mundo');
-})
+app.use('/users', userRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
