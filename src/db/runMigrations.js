@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './src/.env' });
+require('dotenv').config({ path: './.env' });
 
 const fs = require('fs');
 const pool = require('./connection.js');

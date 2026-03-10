@@ -1,13 +1,13 @@
 const bcrypt = require('bcrypt');
 const db = require('../db/connection');
 
-async function registerUser(req, res) {
+const store = async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const query = `INSERT INTO users (id, name, email, password) VALUES (UUID(), ?, ?, ?)`;
+        const query = `INSERT INTO users (id, name, email, password, created_at, updated_at) VALUES (UUID(), ?, ?, ?, NOW(), NOW())`;
 
         await db.execute(query, [name, email, hashedPassword]);
 
@@ -21,5 +21,5 @@ async function registerUser(req, res) {
 }
 
 module.exports = {
-    registerUser
+    store
 };
