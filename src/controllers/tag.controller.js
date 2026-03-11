@@ -79,17 +79,18 @@ const update = async (req, res) => {
         const { id } = req.params;
         const { name, description, color } = req.body;
 
-        const [tag] = await db.execute(
-            `SELECT id FROM tags WHERE id = ?`, [id]
-        );
+        const [[tag], [exists]] = await Promise.all([
+            db.execute(
+                `SELECT id FROM tags WHERE id = ?`, [id]
+            ),
+            db.execute(
+                `SELECT id, name FROM tags WHERE name = ? AND id != ?`, [name, id]
+            )
+        ]);
 
         if (!tag.length) {
             return res.status(404).json({ message: "Etiqueta no encontrada" });
         }
-
-        const [exists] = await db.execute(
-            `SELECT id FROM tags WHERE name = ? AND id != ?`, [name, id]
-        );
 
         if (exists.length) {
             return res.status(400).json({
