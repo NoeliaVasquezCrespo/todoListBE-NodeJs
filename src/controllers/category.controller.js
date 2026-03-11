@@ -79,17 +79,18 @@ const update = async (req, res) => {
         const { id } = req.params;
         const { name, description, color } = req.body;
 
-        const [category] = await db.execute(
-            `SELECT id FROM categories WHERE id = ?`, [id]
-        );
+        const [[category], [exists]] = await Promise.all([
+            db.execute(
+                `SELECT id FROM categories WHERE id = ?`, [id]
+            ),
+            db.execute(
+                `SELECT id, name FROM categories WHERE name = ? AND id != ?`, [name, id]
+            )
+        ]);
 
         if (!category.length) {
             return res.status(404).json({ message: "Categoria no encontrada" });
         }
-
-        const [exists] = await db.execute(
-            `SELECT id FROM categories WHERE name = ? AND id != ?`, [name, id]
-        );
 
         if (exists.length) {
             return res.status(400).json({
