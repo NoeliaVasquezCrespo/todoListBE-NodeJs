@@ -9,6 +9,7 @@ dotenv.config({ path: './.env' });
 const pool = require('./db/connection');
 const userRoutes = require('./routes/user.routes');
 const categoryRoutes = require('./routes/category.routes');
+const tagRoutes = require('./routes/tag.routes');
 
 const port = process.env.PORT || 3000;
 app.use(cors());
@@ -16,6 +17,7 @@ app.use(express.json());
 
 app.use('/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/tags', tagRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
