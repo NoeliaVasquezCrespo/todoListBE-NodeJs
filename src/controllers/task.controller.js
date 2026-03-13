@@ -9,21 +9,46 @@ const index = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const [tasks] = await db.execute(
-            `SELECT t.*, c.id AS category_id, c.name AS category_name, GROUP_CONCAT(tags.id, '|', tags.name, '|', tags.color) AS tags
-            FROM tasks t
-            LEFT JOIN categories c ON c.id = t.category_id
-            LEFT JOIN tags_task tt ON tt.task_id = t.id
-            LEFT JOIN tags ON tags.id = tt.tag_id
-            GROUP BY t.id
-            ORDER BY t.created_at DESC
-            LIMIT ? OFFSET ?`,
+            `SELECT * FROM tasks ORDER BY created_at DESC
+             LIMIT ? OFFSET ?`,
             [limit, offset]
         );
+
+        const categoryIds = [...new Set(tasks.map(t => t.category_id))];
+
+        let categories = [];
+
+        if (categoryIds.length) {
+            const params = categoryIds.map(() => '?').join(',');
+
+            const [result] = await db.execute(
+                `SELECT id, name FROM categories WHERE id IN (${params})`,
+                categoryIds
+            );
+            categories = result;
+        }
+
+        const taskIds = tasks.map(t => t.id);
+
+        let tags = [];
+
+        if (taskIds.length) {
+            const params = taskIds.map(() => '?').join(',');
+
+            const [result] = await db.execute(
+                `SELECT tags.id, tags.name, tags.color, tags_task.task_id
+                 FROM tags
+                 JOIN tags_task ON tags_task.tag_id = tags.id
+                 WHERE tags_task.task_id IN (${params})`,
+                taskIds
+            );
+            tags = result;
+        }
 
         res.json({
             page,
             limit,
-            data: tasks.map(taskDecorator)
+            data: tasks.map(task => taskDecorator(task, categories, tags))
         });
 
     } catch (error) {
@@ -37,13 +62,7 @@ const show = async (req, res) => {
         const { id } = req.params;
 
         const [tasks] = await db.execute(
-            `SELECT t.*, c.id AS category_id, c.name AS category_name, GROUP_CONCAT(tags.id, '|', tags.name, '|', tags.color) AS tags
-            FROM tasks t
-            LEFT JOIN categories c ON c.id = t.category_id
-            LEFT JOIN tags_task tt ON tt.task_id = t.id
-            LEFT JOIN tags ON tags.id = tt.tag_id
-            WHERE t.id = ?
-            GROUP BY t.id`,
+            `SELECT * FROM tasks WHERE id = ?`,
             [id]
         );
 
@@ -51,8 +70,28 @@ const show = async (req, res) => {
             return res.status(404).json({ message: "Tarea no encontrada" });
         }
 
+        const task = tasks[0];
+
+        let categories = [];
+        let tags = [];
+
+        if (task.category_id) {
+            const [result] = await db.execute(`SELECT id, name FROM categories WHERE id = ?`, [task.category_id]);
+            categories = result;
+        }
+
+        const [result] = await db.execute(
+            `SELECT tags.id, tags.name, tags.color, tags_task.task_id
+             FROM tags
+             JOIN tags_task ON tags_task.tag_id = tags.id
+             WHERE tags_task.task_id = ?`,
+            [id]
+        );
+
+        tags = result;
+
         res.json({
-            data: taskDecorator(tasks[0])
+            data: taskDecorator(task, categories, tags)
         });
 
     } catch (error) {
@@ -118,8 +157,8 @@ const update = async (req, res) => {
 
             await Promise.all(
                 tags.map(tagId =>
-                    db.execute( 
-                        `INSERT INTO tags_task (tag_id, task_id) VALUES (?, ?)`, [tagId, id] 
+                    db.execute(
+                        `INSERT INTO tags_task (tag_id, task_id) VALUES (?, ?)`, [tagId, id]
                     )
                 )
             );
@@ -139,16 +178,16 @@ const destroy = async (req, res) => {
 
         const { id } = req.params;
 
-        const [task] = await db.execute( 
-            `SELECT id FROM tasks WHERE id = ?`, [id] 
+        const [task] = await db.execute(
+            `SELECT id FROM tasks WHERE id = ?`, [id]
         );
 
         if (!task.length) {
             return res.status(404).json({ message: "Tarea no encontrada" });
         }
 
-        await db.execute( 
-            `DELETE FROM tasks WHERE id = ?`, [id] 
+        await db.execute(
+            `DELETE FROM tasks WHERE id = ?`, [id]
         );
 
         res.json({

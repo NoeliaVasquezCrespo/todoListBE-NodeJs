@@ -1,9 +1,12 @@
-const taskDecorator = task => {
+const taskDecorator = (task, categories, tags) => {
 
-    const tags = task.tags ? task.tags.split(',').map(tag => {
-        const [id, name, color] = tag.split('|');
-        return { id, name, color };
-    }) : [];
+    const category = categories.find(c => c.id === task.category_id) || null;
+
+    const taskTags = tags.filter(tag => tag.task_id === task.id).map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color
+    }));
 
     return {
         id: task.id,
@@ -13,12 +16,9 @@ const taskDecorator = task => {
 
         category_id: task.category_id || "",
 
-        category: task.category_id ? {
-            id: task.category_id, 
-            name: task.category_name
-        } : null,
+        category,
 
-        tags
+        tags: taskTags
     };
 };
 
