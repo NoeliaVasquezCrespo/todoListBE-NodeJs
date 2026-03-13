@@ -9,7 +9,7 @@ const index = async (req, res) => {
         const offset = (page - 1) * limit;
 
         const [tags] = await db.execute(
-            `SELECT * FROM tags ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]
+            `SELECT * FROM tags WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, [req.user.id, limit, offset]
         );
 
         res.json({
@@ -29,7 +29,7 @@ const show = async (req, res) => {
         const { id } = req.params;
 
         const [tag] = await db.execute(
-            `SELECT * FROM tags WHERE id = ?`, [id]
+            `SELECT * FROM tags WHERE id = ? AND user_id = ?`, [id, req.user.id]
         );
 
         if (!tag.length) {
@@ -55,7 +55,7 @@ const store = async (req, res) => {
         }
 
         const [exists] = await db.execute(
-            `SELECT id FROM tags WHERE name = ?`, [name]
+            `SELECT id FROM tags WHERE name = ? AND user_id = ?`, [name, req.user.id]
         );
 
         if (exists.length) {
@@ -63,7 +63,7 @@ const store = async (req, res) => {
         }
 
         await db.execute(
-            `INSERT INTO tags (id, name, description, color, created_at, updated_at) VALUES (UUID(), ?, ?, ?, NOW(), NOW())`, [name, description, color]
+            `INSERT INTO tags (id, name, description, color, user_id, created_at, updated_at) VALUES (UUID(), ?, ?, ?, ?, NOW(), NOW())`, [name, description, color, req.user.id]
         );
 
         res.status(201).json(tagDecorator({ name, description, color }));
@@ -81,10 +81,10 @@ const update = async (req, res) => {
 
         const [[tag], [exists]] = await Promise.all([
             db.execute(
-                `SELECT id FROM tags WHERE id = ?`, [id]
+                `SELECT id FROM tags WHERE id = ? AND user_id = ?`, [id, req.user.id]
             ),
             db.execute(
-                `SELECT id, name FROM tags WHERE name = ? AND id != ?`, [name, id]
+                `SELECT id, name FROM tags WHERE name = ? AND user_id = ? AND id != ?`, [name, req.user.id, id]
             )
         ]);
 
@@ -99,7 +99,7 @@ const update = async (req, res) => {
         }
 
         await db.execute(
-            `UPDATE tags  SET name=?, description=?, color=?, updated_at=NOW() WHERE id=?`, [name, description, color, id]
+            `UPDATE tags  SET name=?, description=?, color=?, updated_at=NOW() WHERE id=? AND user_id=?`, [name, description, color, id, req.user.id]
         );
 
         res.json(tagDecorator({ name, description, color }));
@@ -115,14 +115,14 @@ const destroy = async (req, res) => {
         const { id } = req.params;
 
         const [tag] = await db.execute(
-            `SELECT id FROM tags WHERE id = ?`, [id]
+            `SELECT id FROM tags WHERE id = ? AND user_id = ?`, [id, req.user.id]
         );
 
         if (!tag.length) {
             return res.status(404).json({ message: "Etiqueta no encontrada" });
         }
 
-        await db.execute(`DELETE FROM tags WHERE id=?`, [id]);
+        await db.execute(`DELETE FROM tags WHERE id=? AND user_id=?`, [id, req.user.id]);
 
         res.json({ message: "Etiqueta eliminada correctamente" });
 
