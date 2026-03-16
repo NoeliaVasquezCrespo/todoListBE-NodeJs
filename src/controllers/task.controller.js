@@ -3,15 +3,16 @@ const { taskDecorator } = require('../decorators/task.decorator');
 
 const index = async (req, res) => {
     try {
+        const userId = req.user.id;
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
 
         const [tasks] = await db.execute(
-            `SELECT * FROM tasks ORDER BY created_at DESC
-             LIMIT ? OFFSET ?`,
-            [limit, offset]
+            `SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?`,
+            [userId, limit, offset]
         );
 
         const categoryIds = [...new Set(tasks.map(t => t.category_id))];
@@ -60,10 +61,11 @@ const show = async (req, res) => {
     try {
 
         const { id } = req.params;
+        const userId = req.user.id;
 
         const [tasks] = await db.execute(
-            `SELECT * FROM tasks WHERE id = ?`,
-            [id]
+            `SELECT * FROM tasks WHERE id = ? AND user_id = ?`,
+            [id, userId]
         );
 
         if (!tasks.length) {
@@ -103,6 +105,7 @@ const store = async (req, res) => {
     try {
 
         const { title, description, category_id, tags } = req.body;
+        const userId = req.user.id;
 
         if (!title) {
             return res.status(400).json({
@@ -111,11 +114,10 @@ const store = async (req, res) => {
         }
 
         await db.execute(
-            `INSERT INTO tasks (id, title, description, status, category_id, created_at, updated_at) VALUES (UUID(), ?, ?, false, ?, NOW(), NOW())`,
-            [title, description, category_id]
+            `INSERT INTO tasks (id, title, description, status, category_id, user_id, created_at, updated_at) VALUES (UUID(), ?, ?, false, ?, ?, NOW(), NOW())`,[title, description, category_id, userId]
         );
 
-        const [[task]] = await db.execute(`SELECT id FROM tasks ORDER BY created_at DESC LIMIT 1`);
+        const [[task]] = await db.execute(`SELECT id FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,[userId]);
 
         if (tags && tags.length) {
             await Promise.all(
@@ -138,10 +140,11 @@ const update = async (req, res) => {
     try {
 
         const { id } = req.params;
+        const userId = req.user.id;
         const { title, description, status, category_id, tags } = req.body;
 
         const [task] = await db.execute(
-            `SELECT id FROM tasks WHERE id = ?`, [id]
+            `SELECT id FROM tasks WHERE id = ? AND user_id = ?`,[id, userId]
         );
 
         if (!task.length) {
@@ -177,9 +180,10 @@ const destroy = async (req, res) => {
     try {
 
         const { id } = req.params;
+        const userId = req.user.id;
 
         const [task] = await db.execute(
-            `SELECT id FROM tasks WHERE id = ?`, [id]
+            `SELECT id FROM tasks WHERE id = ? AND user_id = ?`, [id, userId]
         );
 
         if (!task.length) {
