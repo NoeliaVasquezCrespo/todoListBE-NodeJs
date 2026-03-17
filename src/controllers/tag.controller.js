@@ -4,6 +4,17 @@ const { tagDecorator } = require('../decorators/tag.decorator');
 const index = async (req, res) => {
     try {
         const userId = req.user.id;
+        const withoutPagination = req.query.withoutPagination === "1";
+
+        if (withoutPagination) {
+            const [tags] = await db.execute(
+                `SELECT * FROM tags WHERE user_id = ? ORDER BY created_at DESC`, [userId]
+            );
+
+            return res.json({
+                data: tags.map(tagDecorator)
+            });
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
