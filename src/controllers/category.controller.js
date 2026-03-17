@@ -4,6 +4,17 @@ const { categoryDecorator } = require('../decorators/category.decorator');
 const index = async (req, res) => {
     try {
         const userId = req.user.id;
+        const withoutPagination = req.query.withoutPagination === "1";
+        
+        if (withoutPagination) {
+            const [categories] = await db.execute(
+                `SELECT * FROM categories  WHERE user_id = ?  ORDER BY created_at DESC`, [userId]
+            );
+
+            return res.json({
+                data: categories.map(categoryDecorator)
+            });
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
